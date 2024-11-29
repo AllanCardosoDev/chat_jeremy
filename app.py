@@ -69,8 +69,12 @@ def main():
         st.markdown("[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/seu-usuario/chat_jeremy?quickstart=1)")
 
     if groq_api_key:
-        client = Groq(api_key=groq_api_key)
-        pagina_chat(client)
+        st.write(f"Chave da API capturada: {groq_api_key}")  # Apenas para depuração
+        try:
+            client = Groq(api_key=groq_api_key)
+            pagina_chat(client)
+        except Exception as e:
+            st.error(f"Erro ao inicializar o cliente Groq: {e}")
     else:
         st.info("Por favor, adicione sua chave Groq API para continuar.")
 
