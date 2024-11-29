@@ -3,14 +3,11 @@ import streamlit as st
 from groq import Groq
 from dotenv import load_dotenv
 
-# Carregar as variáveis do arquivo .env
+# Carregar as variáveis do arquivo .env para execução local
 load_dotenv()
 
-# Inicializar o cliente da API Groq
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
 # Função para obter resposta da API Groq
-def get_groq_response(messages):
+def get_groq_response(client, messages):
     try:
         completion = client.chat.completions.create(
             model="llama3-groq-70b-8192-tool-use-preview",
@@ -31,7 +28,7 @@ def get_groq_response(messages):
         return f"Erro: {err}"
 
 # Função para a página de chat
-def pagina_chat():
+def pagina_chat(client):
     st.header('🤖 Bem-vindo ao Jeremy', divider=True)
 
     if 'mensagens' not in st.session_state:
@@ -53,7 +50,7 @@ def pagina_chat():
         formatted_messages = [{"role": "user", "content": msg[1]} for msg in mensagens if msg[0] == 'user']
         
         # Obter a resposta do Oráculo
-        resposta_oraculo = get_groq_response(formatted_messages)
+        resposta_oraculo = get_groq_response(client, formatted_messages)
         
         # Adicionar a resposta do Oráculo à lista de mensagens
         mensagens.append(('assistant', resposta_oraculo))
@@ -66,7 +63,16 @@ def pagina_chat():
 
 # Função principal
 def main():
-    pagina_chat()
+    with st.sidebar:
+        groq_api_key = st.text_input("Groq API Key", value=os.getenv("GROQ_API_KEY", ""), type="password")
+        st.markdown("[View the source code](https://github.com/seu-usuario/chat_jeremy)")
+        st.markdown("[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/seu-usuario/chat_jeremy?quickstart=1)")
+
+    if groq_api_key:
+        client = Groq(api_key=groq_api_key)
+        pagina_chat(client)
+    else:
+        st.info("Por favor, adicione sua chave Groq API para continuar.")
 
 if __name__ == '__main__':
     main()
