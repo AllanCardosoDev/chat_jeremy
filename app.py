@@ -1,5 +1,6 @@
 import streamlit as st
 from groq import Groq
+import re  # Biblioteca para remover padrões indesejados na resposta
 
 # Configuração da barra lateral para inserção da chave da API
 with st.sidebar:
@@ -45,10 +46,16 @@ if prompt := st.chat_input("Digite sua mensagem aqui"):
             stream=True,
             stop=None,
         )
-        resposta = "".join([chunk.choices[0].delta.content or "" for chunk in completion])
-    except Exception as e:
-        resposta = f"Erro ao obter resposta: {e}"
 
-    # Adicionar e exibir a resposta do assistente
-    st.session_state.mensagens.append({"role": "assistant", "content": resposta})
-    st.chat_message("assistant").write(resposta)
+        # Processamento correto da resposta
+        resposta_completa = "".join([chunk.choices[0].delta.content or "" for chunk in completion])
+
+        # Filtrando qualquer texto dentro de <think>...</think>
+        resposta_limpa = re.sub(r"<think>.*?</think>", "", resposta_completa, flags=re.DOTALL).strip()
+
+    except Exception as e:
+        resposta_limpa = f"Erro ao obter resposta: {e}"
+
+    # Adicionar e exibir a resposta do assistente sem <think>
+    st.session_state.mensagens.append({"role": "assistant", "content": resposta_limpa})
+    st.chat_message("assistant").write(resposta_limpa)
