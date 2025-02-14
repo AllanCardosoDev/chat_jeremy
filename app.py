@@ -37,7 +37,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui"):
     # Obter resposta do assistente virtual Jeremy
     try:
         completion = client.chat.completions.create(
-            model="llama3-groq-70b-8192-tool-use-preview",
+            model="deepseek-r1-distill-llama-70b",
             messages=st.session_state.mensagens,
             temperature=0.5,
             max_tokens=1024,
