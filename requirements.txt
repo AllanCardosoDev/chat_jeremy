@@ -1,8 +1,14 @@
-streamlit
-groq
-requests
-streamlit-feedback
-trubrics
-openai
-langchain
-duckduckgo-search
+streamlit==1.38.0
+langchain==0.3.0
+langchain-community==0.3.0
+langchain-groq==0.2.0
+langchain-openai==0.2.0
+python-dotenv==1.0.1
+beautifulsoup4==4.12.3
+pypdf==5.0.0
+unstructured==0.15.13
+fake_useragent==1.5.1
+youtube_transcript_api==0.6.2
+duckduckgo-search==3.9.4  # Para busca em tempo real com DuckDuckGo
+openai==1.11.1  # Para compatibilidade com os modelos da OpenAI
+groq==0.4.0  # Para integração com os modelos da Groq
