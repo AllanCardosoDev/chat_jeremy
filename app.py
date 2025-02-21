@@ -1,13 +1,18 @@
+import tempfile
 import streamlit as st
-from groq import Groq
-import re
-import requests  # Para buscar dados da web (SerpAPI)
-from streamlit_feedback import streamlit_feedback  # Para coleta de feedback
-import trubrics  # Para armazenar feedbacks
+from langchain.memory import ConversationBufferMemory
+from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+from loaders import *
 
-# Modelos disponíveis na Groq
-MODELOS_GROQ = [
-    "qwen-2.5-32b",
+TIPOS_ARQUIVOS_VALIDOS = [
+    'Site', 'Youtube', 'Pdf', 'Csv', 'Txt'
+]
+
+CONFIG_MODELOS = {
+    'Groq': {
+        'modelos': [ "qwen-2.5-32b",
     "deepseek-r1-distill-qwen-32b",
     "deepseek-r1-distill-llama-70b-specdec",
     "deepseek-r1-distill-llama-70b",
@@ -15,139 +20,114 @@ MODELOS_GROQ = [
     "llama-3.2-1b-preview",
     "llama-3.2-3b-preview",
     "llama-3.2-11b-vision-preview",
-    "llama-3.2-90b-vision-preview",
-]
-
-# Configuração da barra lateral
-with st.sidebar:
-    st.header("🔧 Configurações")
-    groq_api_key = st.text_input("🔑 Chave da API Groq", key="chatbot_api_key", type="password")
-    modelo_escolhido = st.selectbox("📌 Escolha o modelo da Groq:", MODELOS_GROQ, index=0)
-    serpapi_key = st.text_input("🌎 Chave da API SerpAPI (opcional para buscas na web)", type="password")
-    ativar_busca_web = st.checkbox("🔍 Buscar na web se necessário")
-    
-    # Links úteis
-    "[📜 Ver código-fonte](https://github.com/seu-repositorio)"
-    "[💡 Obter API da Groq](https://platform.groq.com/account/api-keys)"
-    "[🌎 Criar conta na SerpAPI](https://serpapi.com/)"
-
-# Título do aplicativo
-st.title("💬 Chatbot com Jeremy")
-st.caption("🚀 Chatbot interativo com IA da Groq e busca na web")
-
-# Inicialização do estado de sessão para mensagens e resposta do arquivo
-if "mensagens" not in st.session_state:
-    st.session_state["mensagens"] = [{"role": "assistant", "content": "Como posso ajudar você?"}]
-if "resposta" not in st.session_state:
-    st.session_state["resposta"] = None
-
-# Exibição de mensagens já presentes no estado de sessão
-for msg in st.session_state.mensagens:
-    st.chat_message(msg["role"]).write(msg["content"])
-
-# Função para buscar informações na web usando SerpAPI
-def buscar_na_web(consulta):
-    if not serpapi_key:
-        return "⚠️ A busca na web está ativada, mas a chave da API SerpAPI não foi fornecida."
-    
-    url = "https://serpapi.com/search"
-    params = {
-        "q": consulta,
-        "hl": "pt",
-        "gl": "br",
-        "api_key": serpapi_key
+    "llama-3.2-90b-vision-preview",],
+        'chat': ChatGroq
+    },
+    'OpenAI': {
+        'modelos': ['gpt-4o-mini', 'gpt-4o', 'o1-preview', 'o1-mini'],
+        'chat': ChatOpenAI
     }
+}
 
-    try:
-        resposta = requests.get(url, params=params)
-        dados = resposta.json()
+MEMORIA = ConversationBufferMemory()
+
+def carrega_arquivos(tipo_arquivo, arquivo):
+    if tipo_arquivo == 'Site':
+        documento = carrega_site(arquivo)
+    elif tipo_arquivo == 'Youtube':
+        documento = carrega_youtube(arquivo)
+    elif tipo_arquivo == 'Pdf':
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp:
+            temp.write(arquivo.read())
+            nome_temp = temp.name
+        documento = carrega_pdf(nome_temp)
+    elif tipo_arquivo == 'Csv':
+        with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp:
+            temp.write(arquivo.read())
+            nome_temp = temp.name
+        documento = carrega_csv(nome_temp)
+    elif tipo_arquivo == 'Txt':
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as temp:
+            temp.write(arquivo.read())
+            nome_temp = temp.name
+        documento = carrega_txt(nome_temp)
+    return documento
+
+def carrega_modelo(provedor, modelo, api_key, tipo_arquivo, arquivo):
+    documento = carrega_arquivos(tipo_arquivo, arquivo)
+    system_message = f'''Você é um assistente amigável chamado Oráculo.
+    Você possui acesso às seguintes informações vindas 
+    de um documento {tipo_arquivo}: 
+
+    ####
+    {documento}
+    ####
+
+    Utilize as informações fornecidas para basear as suas respostas.
+    Sempre que houver $ na sua saída, substita por S.
+    Se a informação do documento for algo como "Just a moment...Enable JavaScript and cookies to continue" 
+    sugira ao usuário carregar novamente o Oráculo!'''
+    
+    template = ChatPromptTemplate.from_messages([
+        ('system', system_message),
+        ('placeholder', '{chat_history}'),
+        ('user', '{input}')
+    ])
+    chat = CONFIG_MODELOS[provedor]['chat'](model=modelo, api_key=api_key)
+    chain = template | chat
+    st.session_state['chain'] = chain
+
+def pagina_chat():
+    st.header('🤖Bem-vindo ao Oráculo', divider=True)
+    chain = st.session_state.get('chain')
+    if chain is None:
+        st.error('Carregue o Oráculo')
+        st.stop()
+    
+    memoria = st.session_state.get('memoria', MEMORIA)
+    for mensagem in memoria.buffer_as_messages:
+        chat = st.chat_message(mensagem.type)
+        chat.markdown(mensagem.content)
+    
+    input_usuario = st.chat_input('Fale com o oráculo')
+    if input_usuario:
+        chat = st.chat_message('human')
+        chat.markdown(input_usuario)
         
-        # Pegar os 3 primeiros resultados da pesquisa
-        resultados = dados.get("organic_results", [])
-        resposta_busca = "\n".join([f"{r['title']}: {r['link']}" for r in resultados[:3]])
+        chat = st.chat_message('ai')
+        resposta = chat.write_stream(chain.stream({
+            'input': input_usuario, 
+            'chat_history': memoria.buffer_as_messages
+        }))
+        
+        memoria.chat_memory.add_user_message(input_usuario)
+        memoria.chat_memory.add_ai_message(resposta)
+        st.session_state['memoria'] = memoria
 
-        return resposta_busca if resposta_busca else "❌ Nenhum resultado encontrado."
-    except Exception as e:
-        return f"❌ Erro ao buscar na web: {e}"
+def sidebar():
+    tabs = st.tabs(['Upload de Arquivos', 'Seleção de Modelos'])
+    with tabs[0]:
+        tipo_arquivo = st.selectbox('Selecione o tipo de arquivo', TIPOS_ARQUIVOS_VALIDOS)
+        if tipo_arquivo in ['Site', 'Youtube']:
+            arquivo = st.text_input(f'Digite a url do {tipo_arquivo.lower()}')
+        else:
+            arquivo = st.file_uploader(f'Faça o upload do arquivo {tipo_arquivo.lower()}', type=[tipo_arquivo.lower()])
+    
+    with tabs[1]:
+        provedor = st.selectbox('Selecione o provedor do modelo', list(CONFIG_MODELOS.keys()))
+        modelo = st.selectbox('Selecione o modelo', CONFIG_MODELOS[provedor]['modelos'])
+        api_key = st.text_input(f'Adicione a API key para {provedor}', value=st.session_state.get(f'api_key_{provedor}', ''))
+        st.session_state[f'api_key_{provedor}'] = api_key
+    
+    if st.button('Inicializar Oráculo', use_container_width=True):
+        carrega_modelo(provedor, modelo, api_key, tipo_arquivo, arquivo)
+    if st.button('Apagar Histórico de Conversa', use_container_width=True):
+        st.session_state['memoria'] = MEMORIA
 
-# Upload de arquivo
-uploaded_file = st.file_uploader("📂 Faça upload de um arquivo (.txt, .md)", type=["txt", "md"])
+def main():
+    with st.sidebar:
+        sidebar()
+    pagina_chat()
 
-if uploaded_file:
-    article = uploaded_file.read().decode()
-    st.session_state["artigo"] = article
-    st.write("✅ Arquivo carregado com sucesso!")
-
-# Entrada do usuário para o chat
-if prompt := st.chat_input("Digite sua mensagem aqui"):
-    if not groq_api_key:
-        st.info("⚠️ Por favor, adicione sua chave de API Groq para continuar.")
-        st.stop()
-
-    # Inicializar o cliente Groq
-    try:
-        client = Groq(api_key=groq_api_key)
-    except Exception as e:
-        st.error(f"❌ Erro ao inicializar o cliente Groq: {e}")
-        st.stop()
-
-    # Adicionar mensagem do usuário ao estado de sessão e exibi-la
-    st.session_state.mensagens.append({"role": "user", "content": prompt})
-    st.chat_message("user").write(prompt)
-
-    # Se a busca na web estiver ativada, buscar antes de consultar o chatbot
-    resposta_web = ""
-    if ativar_busca_web:
-        resposta_web = buscar_na_web(prompt)
-
-    # Se o usuário subiu um arquivo, permitir perguntas sobre ele
-    if uploaded_file:
-        prompt = f"Aqui está um artigo:\n\n<article>\n{st.session_state['artigo']}\n</article>\n\n{prompt}"
-
-    # Obter resposta do assistente virtual Jeremy
-    try:
-        completion = client.chat.completions.create(
-            model=modelo_escolhido,
-            messages=st.session_state.mensagens,
-            temperature=0.5,
-            max_tokens=1024,
-            top_p=0.65,
-            stream=True,
-            stop=None,
-        )
-
-        resposta_completa = "".join([chunk.choices[0].delta.content or "" for chunk in completion])
-        resposta_limpa = re.sub(r"<think>.*?</think>", "", resposta_completa, flags=re.DOTALL).strip()
-
-        if ativar_busca_web and resposta_web:
-            resposta_limpa += f"\n\n🌎 Informações adicionais encontradas na web:\n{resposta_web}"
-
-    except Exception as e:
-        resposta_limpa = f"❌ Erro ao obter resposta: {e}"
-
-    st.session_state.mensagens.append({"role": "assistant", "content": resposta_limpa})
-    st.chat_message("assistant").write(resposta_limpa)
-
-    st.session_state["resposta"] = resposta_limpa
-
-# Feedback do usuário
-if st.session_state["resposta"]:
-    feedback = streamlit_feedback(
-        feedback_type="thumbs",
-        optional_text_label="[Opcional] Explique sua avaliação",
-        key=f"feedback_{len(st.session_state['mensagens'])}",
-    )
-
-    if feedback and "TRUBRICS_EMAIL" in st.secrets:
-        config = trubrics.init(
-            email=st.secrets.TRUBRICS_EMAIL,
-            password=st.secrets.TRUBRICS_PASSWORD,
-        )
-        collection = trubrics.collect(
-            component_name="default",
-            model="gpt",
-            response=feedback,
-            metadata={"chat": st.session_state["mensagens"]},
-        )
-        trubrics.save(config, collection)
-        st.toast("✅ Feedback registrado!", icon="📝")
+if __name__ == '__main__':
+    main()
