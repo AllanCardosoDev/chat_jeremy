@@ -3,4 +3,6 @@ groq
 requests
 streamlit-feedback
 trubrics
-re
+openai
+langchain
+duckduckgo-search
