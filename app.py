@@ -2,9 +2,21 @@ import streamlit as st
 from groq import Groq
 import re  # Biblioteca para remover padrões indesejados na resposta
 
-# Configuração da barra lateral para inserção da chave da API
+# Modelos disponíveis na Groq
+MODELOS_GROQ = [
+    "deepseek-r1-distill-llama-70b",
+    "gemini-pro",
+    "mistral-7b",
+    "mixtral-8x7b",
+    "llama3-8b",
+    "llama3-70b"
+]
+
+# Configuração da barra lateral
 with st.sidebar:
-    groq_api_key = st.text_input("Chave da API Groq", key="chatbot_api_key", type="password")
+    st.header("🔧 Configurações")
+    groq_api_key = st.text_input("🔑 Chave da API Groq", key="chatbot_api_key", type="password")
+    modelo_escolhido = st.selectbox("📌 Escolha o modelo da Groq:", MODELOS_GROQ, index=0)
 
 # Título do aplicativo
 st.title("💬 Chatbot com Jeremy")
@@ -21,14 +33,14 @@ for msg in st.session_state.mensagens:
 # Entrada do usuário para o chat
 if prompt := st.chat_input("Digite sua mensagem aqui"):
     if not groq_api_key:
-        st.info("Por favor, adicione sua chave de API Groq para continuar.")
+        st.info("⚠️ Por favor, adicione sua chave de API Groq para continuar.")
         st.stop()
 
     # Inicializar o cliente Groq
     try:
         client = Groq(api_key=groq_api_key)
     except Exception as e:
-        st.error(f"Erro ao inicializar o cliente Groq: {e}")
+        st.error(f"❌ Erro ao inicializar o cliente Groq: {e}")
         st.stop()
 
     # Adicionar mensagem do usuário ao estado de sessão e exibi-la
@@ -38,7 +50,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui"):
     # Obter resposta do assistente virtual Jeremy
     try:
         completion = client.chat.completions.create(
-            model="deepseek-r1-distill-llama-70b",
+            model=modelo_escolhido,  # Utilizando o modelo escolhido na interface
             messages=st.session_state.mensagens,
             temperature=0.5,
             max_tokens=1024,
@@ -54,7 +66,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui"):
         resposta_limpa = re.sub(r"<think>.*?</think>", "", resposta_completa, flags=re.DOTALL).strip()
 
     except Exception as e:
-        resposta_limpa = f"Erro ao obter resposta: {e}"
+        resposta_limpa = f"❌ Erro ao obter resposta: {e}"
 
     # Adicionar e exibir a resposta do assistente sem <think>
     st.session_state.mensagens.append({"role": "assistant", "content": resposta_limpa})
