@@ -4,12 +4,15 @@ import re  # Biblioteca para remover padrões indesejados na resposta
 
 # Modelos disponíveis na Groq
 MODELOS_GROQ = [
+    "qwen-2.5-32b",
+    "deepseek-r1-distill-qwen-32b",
+    "deepseek-r1-distill-llama-70b-specdec",
     "deepseek-r1-distill-llama-70b",
-    "gemini-pro",
-    "mistral-7b",
-    "mixtral-8x7b",
-    "llama3-8b",
-    "llama3-70b"
+    "llama-3.3-70b-specdec",
+    "llama-3.2-1b-preview",
+    "llama-3.2-3b-preview",
+    "llama-3.2-11b-vision-preview",
+    "llama-3.2-90b-vision-preview",
 ]
 
 # Configuração da barra lateral
