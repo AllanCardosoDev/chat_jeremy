@@ -4,16 +4,18 @@ import re  # Biblioteca para remover padrões indesejados na resposta
 
 # Modelos disponíveis na Groq
 MODELOS_GROQ = [
-    "gema2-9b-isto",
-    "llama-3.3-70b-versátil",
+    "distil-whisper-large-v3-en",
+    "gemma2-9b-it",
+    "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
-    "guarda-lhama-3-8b",
-    "lhama3-70b-8192",
-    "lhama3-8b-8192",
+    "llama-guard-3-8b",
+    "llama3-70b-8192",
+    "llama3-8b-8192",
     "mixtral-8x7b-32768",
-    "sussurro-grande-v3",
-    "sussurro-grande-v3-turbo",
+    "whisper-large-v3",
+    "whisper-large-v3-turbo",
 ]
+
 
 # Configuração da barra lateral
 with st.sidebar:
