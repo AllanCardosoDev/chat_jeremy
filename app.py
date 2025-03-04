@@ -4,15 +4,15 @@ import re  # Biblioteca para remover padrões indesejados na resposta
 
 # Modelos disponíveis na Groq
 MODELOS_GROQ = [
-    "qwen-2.5-32b",
-    "deepseek-r1-distill-qwen-32b",
-    "deepseek-r1-distill-llama-70b-specdec",
-    "deepseek-r1-distill-llama-70b",
-    "llama-3.3-70b-specdec",
-    "llama-3.2-1b-preview",
-    "llama-3.2-3b-preview",
-    "llama-3.2-11b-vision-preview",
-    "llama-3.2-90b-vision-preview",
+    "gema2-9b-isto",
+    "llama-3.3-70b-versátil",
+    "llama-3.1-8b-instant",
+    "guarda-lhama-3-8b",
+    "lhama3-70b-8192",
+    "lhama3-8b-8192",
+    "mixtral-8x7b-32768",
+    "sussurro-grande-v3",
+    "sussurro-grande-v3-turbo",
 ]
 
 # Configuração da barra lateral
@@ -56,7 +56,7 @@ if prompt := st.chat_input("Digite sua mensagem aqui"):
             model=modelo_escolhido,  # Utilizando o modelo escolhido na interface
             messages=st.session_state.mensagens,
             temperature=0.5,
-            max_tokens=1024,
+            max_tokens=5000,
             top_p=0.65,
             stream=True,
             stop=None,
